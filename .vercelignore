@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.local
+.env.*.local
+server.js.backup
+routes/
+models/
+middleware/
+database.js

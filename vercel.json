@@ -22,5 +22,6 @@
         "cache-control": "s-maxage=0"
       }
     }
-  ]
+  ],
+  "public": true
 }
