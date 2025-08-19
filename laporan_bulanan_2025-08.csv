@@ -1,0 +1,2 @@
+sparepart,jenis,merk,stockAwal,hargaAwal,masuk,hargaRataRataMasuk,keluar,stockAkhir,hargaRataRataWeighted,totalValue
+"SHOCK","Suspension","kyb","20","200000","5","210000","10","15","202000","3030000"
