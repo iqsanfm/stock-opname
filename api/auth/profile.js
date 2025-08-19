@@ -1,4 +1,3 @@
-require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const connectDB = require('../../database');
 const User = require('../../models/User');
@@ -22,7 +21,7 @@ const auth = async (req) => {
   return user;
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
