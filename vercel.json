@@ -1,7 +1,26 @@
 {
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 10
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1",
+      "headers": {
+        "cache-control": "s-maxage=0"
+      }
+    }
+  ]
 }
