@@ -882,7 +882,8 @@
             const role = document.getElementById('registerRole').value;
             
             try {
-                const response = await apiCall('/auth/register', 'POST', { username, email, password, role });
+                // Test with simple endpoint first
+                const response = await apiCall('/register', 'POST', { username, email, password, role });
                 authToken = response.token;
                 currentUser = response.user;
                 localStorage.setItem('authToken', authToken);
