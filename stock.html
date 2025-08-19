@@ -28,6 +28,64 @@
             backdrop-filter: blur(10px);
         }
 
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab.active {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .auth-content {
+            padding: 30px;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
         .header {
             background: linear-gradient(45deg, #2c3e50, #3498db);
             color: white;
@@ -367,7 +425,57 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Authentication Modal -->
+    <div id="authModal" class="auth-container" style="display: none;">
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+            <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+        </div>
+        <div class="auth-content">
+            <div id="loginForm">
+                <h2>Login</h2>
+                <form id="loginFormElement">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Login</button>
+                </form>
+            </div>
+            <div id="registerForm" style="display: none;">
+                <h2>Register</h2>
+                <form id="registerFormElement">
+                    <div class="form-group">
+                        <label for="registerUsername">Username</label>
+                        <input type="text" id="registerUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerRole">Role</label>
+                        <select id="registerRole">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="mainApp" style="display: none;">
+        <div class="user-info" id="userInfo"></div>
         <div class="header">
             <h1>Stock Opname System</h1>
             <p>Sistem Manajemen Inventory dengan Transaksi Harian & Akumulasi Bulanan</p>
@@ -647,23 +755,190 @@
     </div>
 
     <script>
-        let dailyTransactions = JSON.parse(localStorage.getItem('dailyTransactions')) || [];
-        let monthlyReports = JSON.parse(localStorage.getItem('monthlyReports')) || [];
-        let opnameData = JSON.parse(localStorage.getItem('opnameData')) || [];
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3000/api'; // Change to your Vercel URL when deployed
+        let currentUser = null;
+        let authToken = localStorage.getItem('authToken');
+        
+        // Data storage (will be replaced with API calls)
+        let dailyTransactions = [];
+        let monthlyReports = [];
+        let opnameData = [];
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Set today's date as default
-            document.getElementById('tanggal').valueAsDate = new Date();
-            document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
-            document.getElementById('opnameMonth').value = new Date().toISOString().slice(0, 7);
+            checkAuthStatus();
             
-            updateDailyStatistics();
-            displayDailyTransactions();
-            displayMonthlyReport();
-            displayOpnameData();
-            updateSparepartsList();
+            // Set today's date as default
+            if (document.getElementById('tanggal')) {
+                document.getElementById('tanggal').valueAsDate = new Date();
+                document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+                document.getElementById('opnameMonth').value = new Date().toISOString().slice(0, 7);
+                
+                loadDailyTransactions();
+                updateDailyStatistics();
+                displayDailyTransactions();
+                displayMonthlyReport();
+                displayOpnameData();
+                updateSparepartsList();
+            }
         });
+
+        // Authentication functions
+        function checkAuthStatus() {
+            if (authToken) {
+                fetchUserProfile();
+            } else {
+                showAuthModal();
+            }
+        }
+
+        function showAuthModal() {
+            document.getElementById('authModal').style.display = 'block';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        function hideAuthModal() {
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+        }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tab === 'login') {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('registerForm').style.display = 'none';
+            } else {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('registerForm').style.display = 'block';
+            }
+        }
+
+        // API helper function
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            const config = {
+                method,
+                headers
+            };
+            
+            if (data && (method === 'POST' || method === 'PUT')) {
+                config.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.message || 'API Error');
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('API Call Error:', error);
+                throw error;
+            }
+        }
+
+        // Login form handler
+        document.getElementById('loginFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await apiCall('/auth/login', 'POST', { email, password });
+                authToken = response.token;
+                currentUser = response.user;
+                localStorage.setItem('authToken', authToken);
+                
+                hideAuthModal();
+                updateUserInfo();
+                loadDailyTransactions();
+                showAlert('Login berhasil!', 'success');
+            } catch (error) {
+                showAlert('Login gagal: ' + error.message, 'error');
+            }
+        });
+
+        // Register form handler
+        document.getElementById('registerFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const role = document.getElementById('registerRole').value;
+            
+            try {
+                const response = await apiCall('/auth/register', 'POST', { username, email, password, role });
+                authToken = response.token;
+                currentUser = response.user;
+                localStorage.setItem('authToken', authToken);
+                
+                hideAuthModal();
+                updateUserInfo();
+                loadDailyTransactions();
+                showAlert('Registrasi berhasil!', 'success');
+            } catch (error) {
+                showAlert('Registrasi gagal: ' + error.message, 'error');
+            }
+        });
+
+        async function fetchUserProfile() {
+            try {
+                const response = await apiCall('/auth/profile');
+                currentUser = response.user;
+                updateUserInfo();
+                hideAuthModal();
+                loadDailyTransactions();
+            } catch (error) {
+                // Token might be expired
+                localStorage.removeItem('authToken');
+                authToken = null;
+                showAuthModal();
+            }
+        }
+
+        function updateUserInfo() {
+            if (currentUser) {
+                document.getElementById('userInfo').innerHTML = `
+                    <strong>${currentUser.username}</strong> (${currentUser.role})
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                `;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            authToken = null;
+            currentUser = null;
+            dailyTransactions = [];
+            monthlyReports = [];
+            opnameData = [];
+            showAuthModal();
+            showAlert('Logout berhasil!', 'success');
+        }
+
+        // Load data functions (placeholder - will use API later)
+        async function loadDailyTransactions() {
+            // For now, load from localStorage as backup
+            // Later this will be replaced with API call
+            dailyTransactions = JSON.parse(localStorage.getItem('dailyTransactions')) || [];
+            monthlyReports = JSON.parse(localStorage.getItem('monthlyReports')) || [];
+            opnameData = JSON.parse(localStorage.getItem('opnameData')) || [];
+        }
 
         // Utility functions
         function formatNumber(num) {
