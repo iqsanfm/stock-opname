@@ -1,8 +1,61 @@
 const jwt = require('jsonwebtoken');
-const connectDB = require('../../database');
-const User = require('../../models/User');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
+// MongoDB connection
 let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) return;
+  
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: process.env.DB_NAME
+    });
+    isConnected = true;
+    console.log('MongoDB Connected');
+  } catch (error) {
+    console.error('Database connection error:', error);
+    throw error;
+  }
+};
+
+// User schema
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'user'
+  }
+}, {
+  timestamps: true
+});
+
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -10,10 +63,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    if (!isConnected) {
-      await connectDB();
-      isConnected = true;
-    }
+    await connectDB();
 
     const { email, password } = req.body;
 
@@ -34,7 +84,7 @@ module.exports = async function handler(req, res) {
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
     res.json({
@@ -48,6 +98,7 @@ module.exports = async function handler(req, res) {
       }
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-}
+};
